@@ -52,10 +52,25 @@ def load_messages_from_file(filename: str) -> Optional[List[Message]]:
     """Load chat messages from a JSON file."""
     try:
         with open(filename, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            loaded = json.load(f)
+            if isinstance(loaded, list):
+                if all(isinstance(message, dict) and isinstance(message.get("role", None), str) and isinstance(message.get("content", None), str) for message in loaded):
+                    return loaded
+            raise ValueError(
+                "Invalid JSON schema: Expected a list of dictionaries with keys 'role' (string) and 'content' (string). "
+                f"Got: {loaded}"
+            )
     except Exception as e:
         perror(e)
         return None
+
+
+def print_messages(messages: List[Message]) -> None:
+    """Print all messages in the conversation."""
+    for msg in messages:
+        role = msg["role"].capitalize()
+        content = msg["content"]
+        fputs(f'{role}: {content}\n', STDOUT)
 
 
 def read_file_content(filename: str) -> Optional[str]:
@@ -91,14 +106,6 @@ def chat_with_model(client: OpenAI, messages: List[Message], model: str) -> Iter
 
     except Exception as e:
         perror(e)
-
-
-def output_messages(messages: List[Message]) -> None:
-    """Print all messages in the conversation."""
-    for msg in messages:
-        role = msg["role"].capitalize()
-        content = msg["content"]
-        fputs(f'{role}: {content}\n', STDOUT)
 
 
 def get_single_input(prompt: str = '> ') -> str:
@@ -171,7 +178,7 @@ def main() -> None:
                         messages.clear()
                         messages.extend(loaded)
                         fputs(f"Loaded conversation from {filename}\n", STDOUT)
-                        output_messages(messages)
+                        print_messages(messages)
                     continue
                 elif cmd == ":send" and len(args) == 1:
                     filename = args[0]
