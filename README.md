@@ -1,6 +1,7 @@
-A command-line interface for interacting with LLMs with an OpenAI-compatible API. This script allows you to have conversational chats directly from your terminal.
+A dependency-free command-line interface for interacting with LLMs with an OpenAI-compatible API. This script allows you to have conversational chats directly from your terminal.
 ## Features
 
+*   **Portable:** No external dependencies. Support for both Python 2.7 and Python 3.
 *   **Interactive Chat:** Engage in conversational chats with LLMs.
 *   **Conversation History:** Maintains a history of your conversation within a session.
 *   **Save/Load Conversations:** Save your conversations to a file and load them later for resuming or reviewing.  The history file is stored at `~/.chat_history`.
@@ -8,15 +9,6 @@ A command-line interface for interacting with LLMs with an OpenAI-compatible API
 *   **File Input:** Load a text file as a prompt.
 *   **Unbuffered Output:** Provides immediate feedback in the terminal.
 *   **Streaming Responses:** Displays responses as they arrive from OpenAI-compatible APIs.
-
-## Prerequisites
-
-*   Python 3.7 or newer
-*   `openai` Python package.  Install with:
-
-    ```bash
-    pip install openai
-    ```
 
 ## Usage
 
