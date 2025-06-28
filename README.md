@@ -1,34 +1,88 @@
-A dependency-free command-line interface for interacting with LLMs with an OpenAI-compatible API. This script allows you to have conversational chats directly from your terminal.
+A Python 2.7+ REPL for interacting with LLMs with an OpenAI Chat Completions-compatible API.
+
 ## Features
 
-*   **Portable:** No external dependencies. Support for both Python 2.7 and Python 3.
-*   **Interactive Chat:** Engage in conversational chats with LLMs.
-*   **Conversation History:** Maintains a history of your conversation within a session.
-*   **Save/Load Conversations:** Save your conversations to a file and load them later for resuming or reviewing.  The history file is stored at `~/.chat_history`.
-*   **Multiline Input:** Supports entering multiline input for complex prompts.
-*   **File Input:** Load a text file as a prompt.
-*   **Unbuffered Output:** Provides immediate feedback in the terminal.
-*   **Streaming Responses:** Displays responses as they arrive from OpenAI-compatible APIs.
+- **Zero Dependencies:** Works with stock Python 2.7+ and 3.x
+- **Interactive Chat:** Natural REPL interface with conversation tracking
+- **Streaming Responses:** See responses as they're generated
+- **Multiline Input:** Support for complex prompts with `:multiline`
+- **File Integration:** Load prompts from text files with `:send <textfile>`
+- **Conversation Persistence:** Save/load complete conversations in JSON format
+- **Enhanced Input:** Optional readline support for history and line editing
+- **Dual Modes:** Both interactive REPL and pipe-friendly CLI
 
-## Usage
-
-Run the script with the following arguments:
+## Interactive Mode
 
 ```bash
-python terminal_chat.py --api-key <your_api_key> --base-url <your_base_url> --model <model_name>
+$ python -m chatrepl \
+  --api-key "your-api-key" \
+  --base-url "https://api.openai.com/v1" \
+  --model "gpt-4o"
 ```
 
-*   `--api-key`: Your API key.
-*   `--base-url`: Your base URL. (e.g., `https://api.openai.com/v1`)
-*   `--model`: The name of the model to use (e.g., `gpt-4o`).
+### Basic Conversation
 
-**Commands within the chat:**
+```text
+User [1]: Explain recursion to a 5-year-old
 
-*   `:save <filename>`: Save the current conversation to a file.
-*   `:load <filename>`: Load a conversation from a file.
-*   `:multiline`: Enter multiline input.
-*   `:file <filename>`: Load the content of a file as input.
-*   `:quit`: Exit the chat.
+Assistant [1]: Imagine you're holding a doll that has...
+```
+
+### Using Files
+```text
+User [2]: :send code.py
+Assistant [2]: I notice this Python code could be improved...
+
+User [3]: :save review_chat.json
+```
+
+### Multiline Input
+
+```text
+User [4]: :multiline
+Enter EOF on a blank line to finish input:
+> Compare these programming languages:
+> 1. Python
+> 2. Rust
+> 3. Go
+> [Ctrl-D]
+
+Assistant [4]: Here's a comparison:
+1. Python - High-level, interpreted...
+2. Rust - Systems programming...
+3. Go - Compiled, concurrent...
+```
+
+## Non-interactive Mode (Piped Input)
+
+```bash
+$ uname -a | python -m chatrepl --api-key <your_api_key> --base-url <your_base_url> --model <model_name>
+The output you've provided appears to be system information from ... [output streamed to STDOUT]
+```
+
+## Print Saved Conversations
+
+```bash
+$ python -m chatrepl --print conversation.json
+User [1]: ...
+
+Assistant [1]: ...
+```
+
+## Interactive Commands
+
+- `:multiline` - Enter multiline input mode (end with blank line + Ctrl-D)
+- `:send TEXTFILE` - Send contents of TEXTFILE
+- `:load JSONFILE` - Load conversation from JSONFILE
+- `:save JSONFILE` - Save conversation to JSONFILE
+- `:help` - Show help
+- `:quit` or `Ctrl-D` - Exit the program
+
+## Best Practices
+
+1. For long sessions, periodically save with `:save`
+2. Use `:multiline` for structured prompts (lists, code, etc.)
+3. JSON files can be edited manually for prompt engineering
 
 ## Contributing
 

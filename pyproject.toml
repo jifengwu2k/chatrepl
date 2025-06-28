@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chatrepl"
+version = "0.1.0-a1"
+description = "A Python 2.7+ REPL for interacting with LLMs with an OpenAI Chat Completions-compatible API."
+readme = "README.md"
+requires-python = ">=2"
+license = "MIT"
+authors = [
+  { name="Jifeng Wu", email="jifengwu2k@gmail.com" }
+]
+classifiers = [
+    "Programming Language :: Python :: 2",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+]
+
+[project.urls]
+"Homepage" = "https://github.com/jifengwu2k/chatrepl"
+"Bug Tracker" = "https://github.com/jifengwu2k/chatrepl/issues"
