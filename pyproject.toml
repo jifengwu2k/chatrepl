@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "chatrepl"
-version = "0.1.0-a1"
+version = "0.1.0-a2"
 description = "A Python 2.7+ REPL for interacting with LLMs with an OpenAI Chat Completions-compatible API."
 readme = "README.md"
 requires-python = ">=2"

@@ -10,8 +10,15 @@ A Python 2.7+ REPL for interacting with LLMs with an OpenAI Chat Completions-com
 - **Conversation Persistence:** Save/load complete conversations in JSON format
 - **Enhanced Input:** Optional readline support for history and line editing
 - **Dual Modes:** Both interactive REPL and pipe-friendly CLI
+- **API Ready:** Can be imported as a module for programmatic use
 
-## Interactive Mode
+## Installation
+
+```bash
+pip install chatrepl
+```
+
+## Interactive Mode (CLI)
 
 ```bash
 $ python -m chatrepl \
@@ -53,14 +60,14 @@ Assistant [4]: Here's a comparison:
 3. Go - Compiled, concurrent...
 ```
 
-## Non-interactive Mode (Piped Input)
+### Non-interactive Mode (Piped Input)
 
 ```bash
 $ uname -a | python -m chatrepl --api-key <your_api_key> --base-url <your_base_url> --model <model_name>
 The output you've provided appears to be system information from ... [output streamed to STDOUT]
 ```
 
-## Print Saved Conversations
+### Print Saved Conversations
 
 ```bash
 $ python -m chatrepl --print conversation.json
@@ -69,7 +76,7 @@ User [1]: ...
 Assistant [1]: ...
 ```
 
-## Interactive Commands
+### Interactive Commands
 
 - `:multiline` - Enter multiline input mode (end with blank line + Ctrl-D)
 - `:send TEXTFILE` - Send contents of TEXTFILE
@@ -78,11 +85,40 @@ Assistant [1]: ...
 - `:help` - Show help
 - `:quit` or `Ctrl-D` - Exit the program
 
-## Best Practices
+### Best Practices
 
 1. For long sessions, periodically save with `:save`
 2. Use `:multiline` for structured prompts (lists, code, etc.)
 3. JSON files can be edited manually for prompt engineering
+
+## Programmatic Usage (API)
+
+```python
+from chatrepl import Conversation
+
+# Initialize conversation
+conv = Conversation(
+    api_key="your-api-key",
+    base_url="https://api.openai.com/v1",
+    model="gpt-4o"
+)
+
+# Load conversation
+conv.load_messages_from_file("conversation.json")
+
+# Access message history
+for msg in conv.messages:
+    print(f"{msg['role']}: {msg['content']}")
+
+# Send message and stream response
+print("Assistant: ", end="")
+for chunk in conv.send_message_to_model_and_stream_response("Hello!"):
+    print(chunk, end="")
+print()
+
+# Save conversation
+conv.save_messages_to_file("conversation.json")
+```
 
 ## Contributing
 
