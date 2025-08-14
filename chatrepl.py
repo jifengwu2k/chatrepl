@@ -117,6 +117,29 @@ class Conversation:
                 sys.stdout
             )
 
+    def add_message(
+            self,
+            text,
+            image_url=u''
+    ):
+        # type: (unicode, unicode) -> None
+        """Add a message to the model's message list without obtaining a response."""
+        if image_url:
+            message = {
+                u'role': u'user',
+                u'content': [
+                    { u'type': u'text', u'text': text },
+                    { u'type': u'image_url', u'image_url': { u'url': image_url } }
+                ]
+            }
+        else:
+            message = {
+                u'role': u'user',
+                u'content': text
+            }
+
+        self.messages.append(message)
+
     def send_message_to_model_and_stream_response(
             self,
             text,

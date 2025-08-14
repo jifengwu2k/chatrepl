@@ -110,6 +110,9 @@ conv.load_messages_from_file("conversation.json")
 for msg in conv.messages:
     print(f"{msg['role']}: {msg['content']}")
 
+# Add a message to the model's message list without obtaining a response
+conv.add_message('Help me with the following tasks:')
+
 # Send message and stream response
 print("Assistant: ", end="")
 for chunk in conv.send_message_to_model_and_stream_response("Hello!"):
