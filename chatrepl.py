@@ -140,6 +140,19 @@ class Conversation:
 
         self.messages.append(message)
 
+    def correct_last_response(
+            self,
+            corrected_response
+    ):
+        # type: (unicode) -> bool
+        """Correct the model's last response. Returns True upon success and False upon failure."""
+        if self.messages:
+            last_message = self.messages[-1]
+            if last_message[u'role'] == u'assistant':
+                last_message[u'content'] = corrected_response
+                return True
+        return False
+
     def send_message_to_model_and_stream_response(
             self,
             text,
