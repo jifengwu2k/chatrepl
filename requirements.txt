@@ -1,0 +1,5 @@
+chat-completions-conversation
+file-to-unicode-base64-data-uri
+get-unicode-multiline-input-with-editor
+textcompat
+typing; python_version < '3.5'

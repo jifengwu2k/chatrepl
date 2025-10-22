@@ -2,15 +2,15 @@ A Python 2.7+ REPL for interacting with LLMs with an OpenAI Chat Completions-com
 
 ## Features
 
-- **Zero Dependencies:** Works with stock Python 2.7+ and 3.x
-- **Interactive Chat:** Natural REPL interface with conversation tracking
-- **Streaming Responses:** See responses as they're generated
-- **Multiline Input:** Support for complex prompts with `:multiline`
-- **File Integration:** Load prompts from text files with `:send <textfile>`
-- **Conversation Persistence:** Save/load complete conversations in JSON format
+- **Minimal Dependencies:** Works with stock Python 2.7+ and 3.x
+- **Python-Powered REPL:** Native interactive shell with special chat commands as Python functions
+- **Streaming Responses:** See model replies as they're generated
+- **Multiline Editing:** Use your default editor for long/structured prompts
+- **File & Image Support:** Attach text files or images to your conversation
+- **Conversation Persistence:** Save/load full conversations as JSON
+- **Markdown Export:** Archive conversations in Markdown for easy reference
 - **Enhanced Input:** Optional readline support for history and line editing
 - **Dual Modes:** Both interactive REPL and pipe-friendly CLI
-- **API Ready:** Can be imported as a module for programmatic use
 
 ## Installation
 
@@ -21,107 +21,59 @@ pip install chatrepl
 ## Interactive Mode (CLI)
 
 ```bash
-$ python -m chatrepl \
+python -m chatrepl \
   --api-key "your-api-key" \
   --base-url "https://api.openai.com/v1" \
   --model "gpt-4o"
 ```
 
-### Basic Conversation
+You'll get a Python shell preloaded with chat helper functions:
+
+| Function               | Description                              |
+|------------------------|------------------------------------------|
+| `send(text)`           | Send a message and stream the response   |
+| `append(text)`         | Append text to conversation (don't send) |
+| `multiline()`          | Append multiline input via your editor   |
+| `img(img_file_path)`   | Append an image file                     |
+| `txt(txt_file_path)`   | Append a text file                       |
+| `load(json_file_path)` | Load conversation from JSON              |
+| `save(json_file_path)` | Save conversation to JSON                |
+| `export(md_file_path)` | Export conversation to Markdown          |
+| `correct()`            | Correct (edit) last model response       |
+
+ `exit()` or EOF (`Ctrl-D` on Unix) leaves REPL.
+
+### Basic Example
 
 ```text
-User [1]: Explain recursion to a 5-year-old
+Welcome to ChatREPL! Use the following commands to interact with gpt-4o:
 
-Assistant [1]: Imagine you're holding a doll that has...
+>>> send('Explain recursion.')
+Assistant: Sure! Recursion is...
+
+>>> multiline()
+(opens your editor for multiline input)
+
+>>> img('diagram.png')
+(appends the given image to the conversation)
+
+>>> send('Describe this image.')
+Assistant: ...
+
+>>> save('chat.json')
+(saves the entire chat so far)
 ```
 
-### Using Files
-```text
-User [2]: :send code.py
-Assistant [2]: I notice this Python code could be improved...
-
-User [3]: :save review_chat.json
-```
-
-### Multiline Input
-
-```text
-User [4]: :multiline
-Enter EOF on a blank line to finish input:
-> Compare these programming languages:
-> 1. Python
-> 2. Rust
-> 3. Go
-> [Ctrl-D]
-
-Assistant [4]: Here's a comparison:
-1. Python - High-level, interpreted...
-2. Rust - Systems programming...
-3. Go - Compiled, concurrent...
-```
-
-### Non-interactive Mode (Piped Input)
+## Non-interactive Mode (Piped Input)
 
 ```bash
 $ uname -a | python -m chatrepl --api-key <your_api_key> --base-url <your_base_url> --model <model_name>
 The output you've provided appears to be system information from ... [output streamed to STDOUT]
 ```
 
-### Print Saved Conversations
-
-```bash
-$ python -m chatrepl --print conversation.json
-User [1]: ...
-
-Assistant [1]: ...
-```
-
-### Interactive Commands
-
-- `:multiline` - Enter multiline input mode (end with blank line + Ctrl-D)
-- `:send TEXTFILE` - Send contents of TEXTFILE
-- `:load JSONFILE` - Load conversation from JSONFILE
-- `:save JSONFILE` - Save conversation to JSONFILE
-- `:help` - Show help
-- `:quit` or `Ctrl-D` - Exit the program
-
-### Best Practices
-
-1. For long sessions, periodically save with `:save`
-2. Use `:multiline` for structured prompts (lists, code, etc.)
-3. JSON files can be edited manually for prompt engineering
-
 ## Programmatic Usage (API)
 
-```python
-from chatrepl import Conversation
-
-# Initialize conversation
-conv = Conversation(
-    api_key="your-api-key",
-    base_url="https://api.openai.com/v1",
-    model="gpt-4o"
-)
-
-# Load conversation
-conv.load_messages_from_file("conversation.json")
-
-# Access message history
-for msg in conv.messages:
-    print(f"{msg['role']}: {msg['content']}")
-
-# Add a message to the model's message list without obtaining a response
-conv.add_message('Help me with the following tasks:')
-
-# Send message and stream response
-print("Assistant: ", end="")
-for chunk in conv.send_message_to_model_and_stream_response("Hello!"):
-    print(chunk, end="")
-print()
-
-# Save conversation
-conv.save_messages_to_file("conversation.json")
-```
+See [chat-completions-conversation](https://github.com/jifengwu2k/chat-completions-conversation).
 
 ## Contributing
 
