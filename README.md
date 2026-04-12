@@ -17,11 +17,12 @@ A Python 2.7+ REPL for interacting with LLMs with an OpenAI Chat Completions-com
 ```bash
 pip install chatrepl
 ```
+After installation, run it as `chatrepl`.
 
 ## Interactive Mode (CLI)
 
 ```bash
-python -m chatrepl \
+chatrepl \
   --api-key "your-api-key" \
   --base-url "https://api.openai.com/v1" \
   --model "gpt-4o"
@@ -67,7 +68,7 @@ Assistant: ...
 ## Non-interactive Mode (Piped Input)
 
 ```bash
-$ uname -a | python -m chatrepl --api-key <your_api_key> --base-url <your_base_url> --model <model_name>
+$ uname -a | chatrepl --api-key <your_api_key> --base-url <your_base_url> --model <model_name>
 The output you've provided appears to be system information from ... [output streamed to STDOUT]
 ```
 

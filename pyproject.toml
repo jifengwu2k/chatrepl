@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chatrepl"
-version = "0.2.0a1"
+version = "0.2.0a2"
 description = "A Python 2.7+ REPL for interacting with LLMs with an OpenAI Chat Completions-compatible API."
 readme = "README.md"
 requires-python = ">=2"
@@ -24,6 +24,9 @@ dependencies = [
     "textcompat",
     "typing; python_version < '3.5'"
 ]
+
+[project.scripts]
+chatrepl = "chatrepl:main"
 
 [project.urls]
 "Homepage" = "https://github.com/jifengwu2k/chatrepl"
