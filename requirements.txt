@@ -1,5 +1,10 @@
-chat-completions-conversation
+chat-completions-conversation-with-tools
+create-inspect-typeddict
+enum34; python_version < '3.4'
 file-to-unicode-base64-data-uri
 get-unicode-multiline-input-with-editor
+get-unicode-shell
+live-tee-and-capture
+posix-or-nt
 textcompat
 typing; python_version < '3.5'

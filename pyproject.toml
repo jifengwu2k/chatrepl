@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chatrepl"
-version = "0.2.0a2"
+version = "0.3.0a8"
 description = "A Python 2.7+ REPL for interacting with LLMs with an OpenAI Chat Completions-compatible API."
 readme = "README.md"
 requires-python = ">=2"
@@ -18,9 +18,14 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "chat-completions-conversation",
+    "chat-completions-conversation-with-tools",
+    "create-inspect-typeddict",
+    "enum34; python_version < '3.4'",
     "file-to-unicode-base64-data-uri",
     "get-unicode-multiline-input-with-editor",
+    "get-unicode-shell",
+    "live-tee-and-capture",
+    "posix-or-nt",
     "textcompat",
     "typing; python_version < '3.5'"
 ]
