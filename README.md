@@ -56,6 +56,8 @@ Available commands:
 | `txt(path)` | Append a UTF-8 text file as a user message using the provided path as-is |
 | `img(path)` | Append a local image as a user message; files are embedded as data URLs using the provided path as-is |
 | `reset()` | Reset to only the system prompt |
+| `save(path)` | Save the current conversation transcript as a JSON messages file |
+| `load(path)` | Load a saved JSON transcript and append it to the current conversation |
 
 Exit with `exit()` or EOF.
 

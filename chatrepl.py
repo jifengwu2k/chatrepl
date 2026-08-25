@@ -18,6 +18,7 @@ from typing import IO, List, Text
 from chat_completions_conversation_with_tools import (
     ChatCompletionsConversationWithTools,
     Tool,
+    append_messages,
 )
 from create_inspect_typeddict import create_typeddict
 from file_to_unicode_base64_data_uri import file_to_unicode_base64_data_uri
@@ -205,7 +206,9 @@ def tool_read(arguments):
     path = arguments["path"]
 
     if "offset" in arguments:
-        offset = arguments["offset"] or 1
+        offset = arguments["offset"]
+        if offset is None:
+            offset = 1
     else:
         offset = 1
 
@@ -614,6 +617,27 @@ def build_namespace(
         )
         conversation.reset()
 
+    def save(path):
+        # type: (Text) -> None
+        """Save the current conversation transcript as a JSON messages file."""
+        try:
+            with codecs.open(path, "w", encoding="utf-8") as handle:
+                json.dump(conversation.to_messages(), handle, indent=2)
+            print("Saved %s message(s) to %s" % (len(conversation.messages) - 1, path))
+        except Exception as exc:
+            print("Error saving to %s: %s" % (path, exc), file=sys.stderr)
+
+    def load(path):
+        # type: (Text) -> None
+        """Load a saved JSON transcript and append it to the current conversation."""
+        try:
+            with codecs.open(path, "r", encoding="utf-8") as handle:
+                messages = json.load(handle)
+            appended = append_messages(conversation, messages)
+            print("Loaded %s message(s) from %s" % (appended, path))
+        except Exception as exc:
+            print("Error loading %s: %s" % (path, exc), file=sys.stderr)
+
     functions = [
         send,
         append,
@@ -621,6 +645,8 @@ def build_namespace(
         txt,
         img,
         reset,
+        save,
+        load,
     ]
     namespace = {}
     for function in functions:
