@@ -441,8 +441,14 @@ def refresh_conversation_system_prompt(
     return context_file_paths
 
 
-def run_agent_turn(conversation, stream_enabled, text="", image_url=None):
-    # type: (ChatCompletionsConversationWithTools, bool, Text, object) -> None
+def run_agent_turn(
+    conversation,
+    stream_enabled,
+    text="",
+    image_url=None,
+    debug=False,
+):
+    # type: (ChatCompletionsConversationWithTools, bool, Text, object, bool) -> None
     pending_text = text
     pending_image_url = image_url
     assistant_message = None
@@ -456,8 +462,19 @@ def run_agent_turn(conversation, stream_enabled, text="", image_url=None):
         if state == RunAgentTurnState.SEND_STREAMING_RESPONSE:
             streamed_state = {
                 "text_seen": False,
+                "reasoning_seen": False,
                 "tool_header_printed": False,
             }
+
+            def on_stream_reasoning(reasoning_piece):
+                # type: (Text) -> None
+                if streamed_state["text_seen"]:
+                    fputs(SYS_STDOUT_BUFFER, "\n")
+                    streamed_state["text_seen"] = False
+                if not streamed_state["reasoning_seen"]:
+                    fputs(SYS_STDOUT_BUFFER, "[reasoning]\n")
+                    streamed_state["reasoning_seen"] = True
+                fputs(SYS_STDOUT_BUFFER, reasoning_piece)
 
             def on_stream_text(text_piece):
                 # type: (Text) -> None
@@ -472,21 +489,33 @@ def run_agent_turn(conversation, stream_enabled, text="", image_url=None):
                 if not streamed_state["tool_header_printed"]:
                     fputs(SYS_STDOUT_BUFFER, "[assistant is preparing tool call(s)]\n")
                     streamed_state["tool_header_printed"] = True
-                fputs(SYS_STDOUT_BUFFER, "%s\n" % json.dumps(tool_call_delta))
+                if debug:
+                    fputs(SYS_STDOUT_BUFFER, "%s\n" % json.dumps(tool_call_delta))
 
             assistant_message = conversation.send_and_stream_response(
                 pending_text,
                 image_url=pending_image_url,
                 on_content_delta=on_stream_text,
                 on_tool_call_delta=on_stream_tool_call_delta,
+                on_reasoning_delta=on_stream_reasoning,
             )
-            if assistant_message.content or streamed_state["tool_header_printed"]:
+            if (
+                assistant_message.content
+                or streamed_state["reasoning_seen"]
+                or streamed_state["tool_header_printed"]
+            ):
                 fputs(SYS_STDOUT_BUFFER, "\n")
             state = RunAgentTurnState.HANDLE_ASSISTANT_MESSAGE
         elif state == RunAgentTurnState.SEND_NON_STREAMING_RESPONSE:
+            def on_reasoning(reasoning_text):
+                # type: (Text) -> None
+                fputs(SYS_STDOUT_BUFFER, "[reasoning]\n")
+                fputs(SYS_STDOUT_BUFFER, "%s\n" % reasoning_text)
+
             assistant_message = conversation.send_and_receive_response(
                 pending_text,
                 image_url=pending_image_url,
+                on_reasoning=on_reasoning,
             )
             state = RunAgentTurnState.HANDLE_ASSISTANT_MESSAGE
         elif state == RunAgentTurnState.HANDLE_ASSISTANT_MESSAGE:
@@ -564,8 +593,9 @@ def build_namespace(
     base_system_prompt,
     context_files_enabled,
     context_file_paths,
+    debug=False,
 ):
-    # type: (ChatCompletionsConversationWithTools, bool, Text, bool, list) -> dict
+    # type: (ChatCompletionsConversationWithTools, bool, Text, bool, list, bool) -> dict
     def send(text="", image_path=None, stream=default_stream_enabled):
         # type: (Text, object, bool) -> None
         """Send a message and let the agent complete tool calls. Optionally include a local image path and control streaming."""
@@ -579,6 +609,7 @@ def build_namespace(
             bool(stream),
             text,
             image_url=image_url,
+            debug=debug,
         )
 
     def append(text):
@@ -687,6 +718,11 @@ def main():
         action="store_true",
         help="Disable AGENTS.md and CLAUDE.md discovery",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print tool call deltas as they stream in",
+    )
     parser.add_argument("prompt", nargs="*", help="Optional initial prompt")
     args = parser.parse_args()
 
@@ -695,6 +731,7 @@ def main():
     model = stdin_str_to_text(args.model)
     no_stream = args.no_stream
     no_context_files = args.no_context_files
+    debug = args.debug
     prompt = map(lambda component: stdin_str_to_text(component), args.prompt)
 
     context_files_enabled = not no_context_files
@@ -722,10 +759,11 @@ def main():
             conversation,
             default_stream_enabled,
             stdin_str_to_text(sys.stdin.read()),
+            debug=debug,
         )
 
     if initial_prompt:
-        run_agent_turn(conversation, default_stream_enabled, initial_prompt)
+        run_agent_turn(conversation, default_stream_enabled, initial_prompt, debug=debug)
 
     is_interactive = sys.stdin.isatty()
     readline = None
@@ -778,6 +816,7 @@ def main():
         SYSTEM_PROMPT,
         context_files_enabled,
         context_file_paths,
+        debug=debug,
     )
     interactive_console = InteractiveConsole(namespace)
     interactive_console.runsource(

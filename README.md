@@ -14,8 +14,10 @@ A minimal agent for OpenAI-compatible Chat Completions APIs with four built-in t
 - Works with OpenAI-compatible `/chat/completions` endpoints
 - Discovery of `AGENTS.md` and `CLAUDE.md` under the current working directory
 - Streaming assistant responses
+- Reasoning deltas streamed inline as `[reasoning]` sections when the provider reports them
 - Editable multiline input through your editor
 - Non-interactive CLI mode for piped input or one-shot prompts
+- `--debug` flag to print tool call deltas as they stream in
 
 ## Installation
 
@@ -33,6 +35,7 @@ pip install chatrepl
 -m, --model             Model ID
 --no-stream             Disable streaming
 --no-context-files      Disable AGENTS.md and CLAUDE.md discovery
+--debug                 Print tool call deltas as they stream in
 ```
 
 ### Interactive REPL
@@ -51,6 +54,7 @@ Available commands:
 | Function | Description |
 |---|---|
 | `send(text='', image_path=None, stream=True)` | Send a message and let the agent complete tool calls, optionally with a local image path used as-is and streaming control |
+| `send(...)` with reasoning | When the provider streams reasoning content, it is printed under a `[reasoning]` header before the final text |
 | `append(text)` | Append a user message without sending |
 | `multiline()` | Append multiline input from your editor |
 | `txt(path)` | Append a UTF-8 text file as a user message using the provided path as-is |
