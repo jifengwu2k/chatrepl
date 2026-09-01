@@ -414,16 +414,30 @@ def tool_shell(arguments):
 
 
 def run_tool(name, arguments):
-    # type: (Text, dict) -> Text
-    if name == "read":
-        return tool_read(arguments)
-    if name == "write":
-        return tool_write(arguments)
-    if name == "edit":
-        return tool_edit(arguments)
-    if name == "shell":
-        return tool_shell(arguments)
-    return "Unknown tool: %s" % name
+    # type: (Text, object) -> Text
+    tools = {
+        "read": tool_read,
+        "write": tool_write,
+        "edit": tool_edit,
+        "shell": tool_shell,
+    }
+    tool = tools.get(name)
+    if tool is None:
+        return "Unknown tool: %s" % name
+
+    # Tool arguments are supplied by the model and may be valid JSON that is
+    # not an object (for example, an array).  Do not let malformed tool calls
+    # terminate the entire agent session.
+    if not isinstance(arguments, dict):
+        return "Invalid arguments for %s: expected a JSON object, got %s" % (
+            name,
+            type(arguments).__name__,
+        )
+
+    try:
+        return tool(arguments)
+    except Exception as exc:
+        return "Error running %s tool: %s" % (name, exc)
 
 
 def refresh_conversation_system_prompt(

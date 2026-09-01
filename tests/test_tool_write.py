@@ -6,7 +6,14 @@
 
 import os
 
-from chatrepl import ensure_parent_dir, tool_write
+from chatrepl import ensure_parent_dir, run_tool, tool_write
+
+
+def test_run_tool_rejects_non_object_arguments():
+    # A model can return valid JSON such as an array for a tool call.  This
+    # must be reported to the model rather than crashing on arguments["path"].
+    result = run_tool("write", [{"path": "out.txt", "content": "hello"}])
+    assert result == "Invalid arguments for write: expected a JSON object, got list"
 
 
 def test_tool_write_creates_file_with_parent_directories(tmpdir):
