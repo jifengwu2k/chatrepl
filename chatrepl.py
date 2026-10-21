@@ -12,8 +12,8 @@ import os
 import sys
 from code import InteractiveConsole
 from enum import Enum
-from pydoc import TextDoc
-from typing import IO, List, Text
+from pydoc import TextDoc, plain
+from typing import IO, List, Optional, Text
 
 from chat_completions_conversation_with_tools import (
     ChatCompletionsConversationWithTools,
@@ -398,12 +398,9 @@ def tool_shell(arguments):
 
     try:
         exit_code, stdout_buffer, stderr_buffer = live_tee_and_capture(
-            build_live_shell_command(command), tee_stdout=True, tee_stderr=True
+            build_live_shell_command(command), tee_stdout=True, merge_stderr=True
         )
-        output = bytearray()
-        output.extend(stdout_buffer)
-        output.extend(stderr_buffer)
-        text_output = output.decode("utf-8", "replace")
+        text_output = stdout_buffer.decode("utf-8", "replace")
 
         result = ["Exit code: %s" % exit_code]
         if text_output:
@@ -458,11 +455,11 @@ def refresh_conversation_system_prompt(
 def run_agent_turn(
     conversation,
     stream_enabled,
-    text="",
+    text=None,
     image_url=None,
     debug=False,
 ):
-    # type: (ChatCompletionsConversationWithTools, bool, Text, object, bool) -> None
+    # type: (ChatCompletionsConversationWithTools, bool, Optional[Text], object, bool) -> None
     pending_text = text
     pending_image_url = image_url
     assistant_message = None
@@ -477,6 +474,7 @@ def run_agent_turn(
             streamed_state = {
                 "text_seen": False,
                 "reasoning_seen": False,
+                "reasoning_open": False,
                 "tool_header_printed": False,
             }
 
@@ -488,15 +486,22 @@ def run_agent_turn(
                 if not streamed_state["reasoning_seen"]:
                     fputs(SYS_STDOUT_BUFFER, "[reasoning]\n")
                     streamed_state["reasoning_seen"] = True
+                streamed_state["reasoning_open"] = True
                 fputs(SYS_STDOUT_BUFFER, reasoning_piece)
 
             def on_stream_text(text_piece):
                 # type: (Text) -> None
+                if streamed_state["reasoning_open"]:
+                    fputs(SYS_STDOUT_BUFFER, "\n")
+                    streamed_state["reasoning_open"] = False
                 streamed_state["text_seen"] = True
                 fputs(SYS_STDOUT_BUFFER, text_piece)
 
             def on_stream_tool_call_delta(tool_call_delta):
                 # type: (dict) -> None
+                if streamed_state["reasoning_open"]:
+                    fputs(SYS_STDOUT_BUFFER, "\n")
+                    streamed_state["reasoning_open"] = False
                 if streamed_state["text_seen"]:
                     fputs(SYS_STDOUT_BUFFER, "\n")
                     streamed_state["text_seen"] = False
@@ -533,7 +538,7 @@ def run_agent_turn(
             )
             state = RunAgentTurnState.HANDLE_ASSISTANT_MESSAGE
         elif state == RunAgentTurnState.HANDLE_ASSISTANT_MESSAGE:
-            pending_text = ""
+            pending_text = None
             pending_image_url = None
 
             content = assistant_message.content
@@ -597,7 +602,7 @@ def print_banner(conversation, functions, context_files_enabled, context_file_pa
 
     text_doc = TextDoc()
     for function in functions:
-        banner_lines.append(text_doc.document(function))
+        banner_lines.append(plain(text_doc.document(function)))
     return "\n".join(banner_lines)
 
 
@@ -610,9 +615,9 @@ def build_namespace(
     debug=False,
 ):
     # type: (ChatCompletionsConversationWithTools, bool, Text, bool, list, bool) -> dict
-    def send(text="", image_path=None, stream=default_stream_enabled):
-        # type: (Text, object, bool) -> None
-        """Send a message and let the agent complete tool calls. Optionally include a local image path and control streaming."""
+    def send(text=None, image_path=None, stream=default_stream_enabled):
+        # type: (Optional[Text], object, bool) -> None
+        """Send a message, or continue appended history when text is omitted. Optionally include an image and control streaming."""
         image_url = None
         if image_path is not None:
             image_url = file_to_unicode_base64_data_uri(
@@ -768,18 +773,20 @@ def main():
 
     default_stream_enabled = not no_stream
 
-    if not sys.stdin.isatty() and not initial_prompt:
-        run_agent_turn(
-            conversation,
-            default_stream_enabled,
-            stdin_str_to_text(sys.stdin.read()),
-            debug=debug,
-        )
-
-    if initial_prompt:
-        run_agent_turn(conversation, default_stream_enabled, initial_prompt, debug=debug)
-
     is_interactive = sys.stdin.isatty()
+    if not is_interactive and not initial_prompt:
+        initial_prompt = stdin_str_to_text(sys.stdin.read())
+
+    if initial_prompt.strip():
+        try:
+            run_agent_turn(conversation, default_stream_enabled, initial_prompt, debug=debug)
+        except (RuntimeError, ValueError, IOError) as exc:
+            print("\nchatrepl: %s" % exc, file=sys.stderr)
+            raise SystemExit(1)
+
+    if not is_interactive:
+        return
+
     readline = None
     history_path = None
 
