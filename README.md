@@ -113,7 +113,7 @@ Returns a unified diff after a successful edit.
 Runs a shell command in the current working directory.
 
 - live output is streamed to the terminal
-- full output is returned to the model
+- stdout and stderr remain separate in the terminal and are returned to the model in labeled sections
 
 ## Example session
 
@@ -259,7 +259,11 @@ Then tool execution:
 $ printf 'stdout-line\n'; printf 'stderr-line\n' >&2
 Exit code: 0
 
+stdout:
 stdout-line
+
+
+stderr:
 stderr-line
 ```
 

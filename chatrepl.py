@@ -398,13 +398,14 @@ def tool_shell(arguments):
 
     try:
         exit_code, stdout_buffer, stderr_buffer = live_tee_and_capture(
-            build_live_shell_command(command), tee_stdout=True, merge_stderr=True
+            build_live_shell_command(command), tee_stdout=True, tee_stderr=True
         )
-        text_output = stdout_buffer.decode("utf-8", "replace")
 
         result = ["Exit code: %s" % exit_code]
-        if text_output:
-            result.extend(["", text_output])
+        if stdout_buffer:
+            result.extend(["", "stdout:", stdout_buffer.decode("utf-8", "replace")])
+        if stderr_buffer:
+            result.extend(["", "stderr:", stderr_buffer.decode("utf-8", "replace")])
         return "\n".join(result)
     except Exception as exc:
         return "Error executing shell command: %s" % exc

@@ -91,12 +91,30 @@ def test_stream_reasoning_is_separated_from_answer(monkeypatch):
     assert chatrepl.SYS_STDOUT_BUFFER.getvalue() == b"[reasoning]\nthought\nanswer\n"
 
 
-def test_shell_result_preserves_cross_stream_write_order(monkeypatch):
+def test_shell_result_preserves_separate_streams(monkeypatch, capfd):
     source = "import os; os.write(1,b'OUT1\\n'); os.write(2,b'ERR1\\n'); os.write(1,b'OUT2\\n'); os.write(2,b'ERR2\\n'); raise SystemExit(7)"
     monkeypatch.setattr(chatrepl, "build_live_shell_command", lambda command: [sys.executable, "-c", source])
     monkeypatch.setattr(chatrepl, "SYS_STDOUT_BUFFER", io.BytesIO())
     result = chatrepl.tool_shell({"command": "test child"})
-    assert result == "Exit code: 7\n\nOUT1\nERR1\nOUT2\nERR2\n"
+    assert result == "Exit code: 7\n\nstdout:\nOUT1\nOUT2\n\n\nstderr:\nERR1\nERR2\n"
+    out, err = capfd.readouterr()
+    assert out == "OUT1\nOUT2\n"
+    assert err == "ERR1\nERR2\n"
+
+
+@pytest.mark.parametrize("source,expected,out,err", [
+    ("import os; os.write(1, b'out')", "Exit code: 0\n\nstdout:\nout", "out", ""),
+    ("import os; os.write(2, b'err'); raise SystemExit(3)",
+     "Exit code: 3\n\nstderr:\nerr", "", "err"),
+    ("pass", "Exit code: 0", "", ""),
+])
+def test_shell_result_handles_single_or_empty_streams(monkeypatch, capfd, source, expected, out, err):
+    monkeypatch.setattr(chatrepl, "build_live_shell_command", lambda command: [sys.executable, "-c", source])
+    monkeypatch.setattr(chatrepl, "SYS_STDOUT_BUFFER", io.BytesIO())
+    assert chatrepl.tool_shell({"command": "test child"}) == expected
+    captured_out, captured_err = capfd.readouterr()
+    assert captured_out == out
+    assert captured_err == err
 
 
 @pytest.mark.parametrize("arguments", [None, [], "{}", {"path": 42}, {}])
