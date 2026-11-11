@@ -83,6 +83,26 @@ def test_incomplete_write_call_never_executes(monkeypatch, tmpdir, stream, reaso
     assert len(conv.messages) == 1
 
 
+def test_image_read_attaches_image_after_tool_messages(monkeypatch, tmpdir):
+    path = str(tmpdir.join("pixel.png"))
+    with open(path, "wb") as handle:
+        handle.write(b"\x89PNG\r\n\x1a\n")
+    call = client.ToolCall("read-1", "read", {"path": path}).to_payload()
+    requests = install_responses(monkeypatch, [
+        body_for({"content": "", "tool_calls": [call]}, "tool_calls", False),
+        body_for({"content": "done"}, "stop", False),
+    ])
+    chatrepl.run_agent_turn(conversation(), False, "Look at this")
+
+    messages = requests[1]["messages"]
+    assert [message["role"] for message in messages] == [
+        "system", "user", "assistant", "tool", "user"]
+    assert messages[3]["content"] == "Read image file [image/png]"
+    image_part = messages[4]["content"][1]
+    assert image_part["type"] == "image_url"
+    assert image_part["image_url"]["url"].startswith("data:image/png;base64,")
+
+
 def test_stream_reasoning_is_separated_from_answer(monkeypatch):
     body = body_for({"reasoning_content": "thought"}, None, True, complete=False)
     body += body_for({"content": "answer"}, "stop", True)
@@ -120,4 +140,4 @@ def test_shell_result_handles_single_or_empty_streams(monkeypatch, capfd, source
 @pytest.mark.parametrize("arguments", [None, [], "{}", {"path": 42}, {}])
 def test_malformed_write_arguments_are_errors(arguments):
     result = chatrepl.run_tool("write", arguments)
-    assert result.startswith(("Invalid arguments", "Error running"))
+    assert result.text.startswith(("Invalid arguments", "Error running"))

@@ -6,7 +6,14 @@
 
 import os
 
-from chatrepl import tool_read
+from chatrepl import run_tool, tool_read
+
+
+PNG_BYTES = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06"
+    b"\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\xdac\xfc\xcf\xc0P\x0f\x00\x04\x85"
+    b"\x01\x80\x84\xa9\x8c!\x00\x00\x00\x00IEND\xaeB`\x82"
+)
 
 
 def write_bytes(directory, name, content):
@@ -86,3 +93,27 @@ def test_tool_read_zero_limit_returns_hint(tmpdir):
     path = write_bytes(tmpdir, "hello.txt", b"line1\nline2\nline3\n")
     result = tool_read({"path": path, "offset": 1, "limit": 0})
     assert "more lines in file" in result
+
+
+def test_run_tool_reads_image_as_attachment(tmpdir):
+    path = write_bytes(tmpdir, "pixel.png", PNG_BYTES)
+    result = run_tool("read", {"path": path})
+
+    assert result.text == "Read image file [image/png]"
+    assert len(result.image_urls) == 1
+    assert result.image_urls[0].startswith("data:image/png;base64,")
+
+
+def test_run_tool_reads_text_file_as_text(tmpdir):
+    path = write_bytes(tmpdir, "hello.txt", b"hello\n")
+    result = run_tool("read", {"path": path})
+
+    assert result.text == "hello\n"
+    assert result.image_urls == []
+
+
+def test_run_tool_image_read_error_is_reported(tmpdir):
+    result = run_tool("read", {"path": os.path.join(str(tmpdir), "missing.png")})
+
+    assert result.text.startswith("Error reading")
+    assert result.image_urls == []

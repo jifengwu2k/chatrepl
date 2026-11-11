@@ -48,26 +48,68 @@ def test_compose_system_prompt_includes_claude_md(tmpdir, monkeypatch):
     assert "Claude instructions." in prompt
 
 
+def write_context_file(directory, name, content):
+    path = os.path.join(str(directory), name)
+    with open(path, "wb") as handle:
+        handle.write(content)
+    return path
+
+
 def test_compose_system_prompt_includes_both_files_in_listing_order(tmpdir, monkeypatch):
-    agents_path = os.path.join(str(tmpdir), "AGENTS.md")
-    claude_path = os.path.join(str(tmpdir), "CLAUDE.md")
-    for path in (agents_path, claude_path):
-        with open(path, "wb") as handle:
-            handle.write(b"rules\n")
+    agents_path = write_context_file(tmpdir, "AGENTS.md", b"agents rules\n")
+    write_context_file(tmpdir, "CLAUDE.md", b"claude rules\n")
 
     monkeypatch.chdir(str(tmpdir))
     prompt, paths = compose_system_prompt(SYSTEM_PROMPT, True)
 
-    assert sorted(paths) == sorted([agents_path, claude_path])
+    # One context file per directory: AGENTS.md shadows CLAUDE.md.
+    assert paths == [agents_path]
+    assert "agents rules" in prompt
+    assert "claude rules" not in prompt
 
 
-def test_compose_system_prompt_unreadable_context_file(tmpdir, monkeypatch):
-    # A directory named AGENTS.md cannot be read as a text file.
-    context_path = os.path.join(str(tmpdir), "AGENTS.md")
-    os.makedirs(context_path)
+def test_compose_system_prompt_prefers_override_file(tmpdir, monkeypatch):
+    override_path = write_context_file(tmpdir, "AGENTS.override.md", b"override rules\n")
+    write_context_file(tmpdir, "AGENTS.md", b"agents rules\n")
 
     monkeypatch.chdir(str(tmpdir))
     prompt, paths = compose_system_prompt(SYSTEM_PROMPT, True)
 
-    assert paths == [context_path]
-    assert "Failed to read context file" in prompt
+    assert paths == [override_path]
+    assert "override rules" in prompt
+    assert "agents rules" not in prompt
+
+
+def test_compose_system_prompt_includes_parent_directories(tmpdir, monkeypatch):
+    parent_path = write_context_file(tmpdir, "AGENTS.md", b"parent rules\n")
+    child_directory = tmpdir.mkdir("project")
+
+    monkeypatch.chdir(str(child_directory))
+    prompt, paths = compose_system_prompt(SYSTEM_PROMPT, True)
+
+    assert paths == [parent_path]
+    assert "parent rules" in prompt
+
+
+def test_compose_system_prompt_orders_outermost_first(tmpdir, monkeypatch):
+    outer_path = write_context_file(tmpdir, "AGENTS.md", b"outer rules\n")
+    child_directory = tmpdir.mkdir("project")
+    inner_path = write_context_file(child_directory, "CLAUDE.md", b"inner rules\n")
+    deep_directory = child_directory.mkdir("src")
+
+    monkeypatch.chdir(str(deep_directory))
+    prompt, paths = compose_system_prompt(SYSTEM_PROMPT, True)
+
+    assert paths == [outer_path, inner_path]
+    assert prompt.index("outer rules") < prompt.index("inner rules")
+
+
+def test_compose_system_prompt_ignores_context_directories(tmpdir, monkeypatch):
+    # A directory named AGENTS.md is not a context file.
+    os.makedirs(os.path.join(str(tmpdir), "AGENTS.md"))
+
+    monkeypatch.chdir(str(tmpdir))
+    prompt, paths = compose_system_prompt(SYSTEM_PROMPT, True)
+
+    assert paths == []
+    assert prompt == SYSTEM_PROMPT

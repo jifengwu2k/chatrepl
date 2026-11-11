@@ -53,7 +53,31 @@ def fputs(file, text):
         pass
 
 
-CONTEXT_FILE_NAMES = ("AGENTS.md", "CLAUDE.md")
+CONTEXT_FILE_NAMES = (
+    "AGENTS.override.md",
+    "AGENTS.md",
+    "AGENTS.MD",
+    "CLAUDE.md",
+    "CLAUDE.MD",
+)
+
+IMAGE_FILE_EXTENSIONS = (
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".webp",
+    ".bmp",
+)
+
+
+class ToolResult(object):
+    __slots__ = ("text", "image_urls")
+
+    def __init__(self, text, image_urls=None):
+        # type: (Text, Optional[List[Text]]) -> None
+        self.text = text
+        self.image_urls = [] if image_urls is None else image_urls
 
 
 class RunAgentTurnState(Enum):
@@ -67,6 +91,7 @@ SYSTEM_PROMPT = (
 
 Tool rules:
 - Use read for inspecting files.
+- read also opens images (jpg, png, gif, webp, bmp) as attachments.
 - If a file is large, use read with offset/limit.
 - Use write for creating new files or completely rewriting files.
 - Use edit for precise changes to existing files.
@@ -123,8 +148,9 @@ ShellParameters = create_typeddict(
 TOOLS_BY_NAME = {
     "read": Tool(
         description=(
-            "Read the contents of a file. Supports text files. "
-            "Optional offset/limit can be used to read part of a file."
+            "Read the contents of a file. Supports text files and images "
+            "(jpg, png, gif, webp, bmp). Images are sent as attachments. "
+            "Optional offset/limit can be used to read part of a text file."
         ),
         parameters_typeddict=ReadParameters,
     ),
@@ -164,16 +190,44 @@ def read_text_file(path):
         return handle.read()
 
 
+def find_context_file_in_directory(directory):
+    # type: (Text) -> Optional[Text]
+    for file_name in CONTEXT_FILE_NAMES:
+        path = os.path.join(directory, file_name)
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def find_context_file_paths(start_directory):
+    # type: (Text) -> List[Text]
+    """Return one context file per directory, outermost directory first."""
+    context_file_paths = []
+    seen_canonical_paths = set()
+    current_directory = os.path.abspath(start_directory)
+
+    while True:
+        context_file_path = find_context_file_in_directory(current_directory)
+        if context_file_path is not None:
+            canonical_path = os.path.abspath(context_file_path)
+            if canonical_path not in seen_canonical_paths:
+                context_file_paths.insert(0, context_file_path)
+                seen_canonical_paths.add(canonical_path)
+
+        parent_directory = os.path.dirname(current_directory)
+        if parent_directory == current_directory:
+            break
+        current_directory = parent_directory
+
+    return context_file_paths
+
+
 def compose_system_prompt(base_system_prompt, context_files_enabled):
     # type: (Text, bool) -> tuple
     if not context_files_enabled:
         return base_system_prompt, []
-        
-    context_file_paths = []
-    file_names = os.listdir(os.getcwd())
-    for file_name in file_names:
-        if file_name in CONTEXT_FILE_NAMES:
-            context_file_paths.append(os.path.join(os.getcwd(), file_name))
+
+    context_file_paths = find_context_file_paths(os.getcwd())
 
     if not context_file_paths:
         return base_system_prompt, []
@@ -181,7 +235,7 @@ def compose_system_prompt(base_system_prompt, context_files_enabled):
     sections = [
         base_system_prompt,
         "",
-        "The following project instruction files were discovered under the current working directory.",
+        "The following project instruction files were discovered in the current working directory and its parent directories.",
         "Follow them in addition to the base system prompt.",
         "",
     ]
@@ -199,6 +253,31 @@ def compose_system_prompt(base_system_prompt, context_files_enabled):
         )
 
     return "\n".join(sections), context_file_paths
+
+
+def is_image_path(path):
+    # type: (Text) -> bool
+    return os.path.splitext(path)[1].lower() in IMAGE_FILE_EXTENSIONS
+
+
+def tool_read_image(arguments):
+    # type: (dict) -> ToolResult
+    path = arguments["path"]
+    try:
+        data_uri = file_to_unicode_base64_data_uri(text_to_filesystem_str(path))
+    except Exception as exc:
+        return ToolResult("Error reading %s: %s" % (path, exc))
+
+    mime_type = data_uri[len("data:"):data_uri.index(";base64,")]
+    return ToolResult("Read image file [%s]" % mime_type, [data_uri])
+
+
+def run_read_tool(arguments):
+    # type: (dict) -> ToolResult
+    path = arguments["path"]
+    if is_image_path(path):
+        return tool_read_image(arguments)
+    return ToolResult(tool_read(arguments))
 
 
 def tool_read(arguments):
@@ -412,7 +491,7 @@ def tool_shell(arguments):
 
 
 def run_tool(name, arguments):
-    # type: (Text, object) -> Text
+    # type: (Text, object) -> ToolResult
     tools = {
         "read": tool_read,
         "write": tool_write,
@@ -421,21 +500,23 @@ def run_tool(name, arguments):
     }
     tool = tools.get(name)
     if tool is None:
-        return "Unknown tool: %s" % name
+        return ToolResult("Unknown tool: %s" % name)
 
     # Tool arguments are supplied by the model and may be valid JSON that is
     # not an object (for example, an array).  Do not let malformed tool calls
     # terminate the entire agent session.
     if not isinstance(arguments, dict):
-        return "Invalid arguments for %s: expected a JSON object, got %s" % (
-            name,
-            type(arguments).__name__,
+        return ToolResult(
+            "Invalid arguments for %s: expected a JSON object, got %s"
+            % (name, type(arguments).__name__)
         )
 
     try:
-        return tool(arguments)
+        if name == "read":
+            return run_read_tool(arguments)
+        return ToolResult(tool(arguments))
     except Exception as exc:
-        return "Error running %s tool: %s" % (name, exc)
+        return ToolResult("Error running %s tool: %s" % (name, exc))
 
 
 def refresh_conversation_system_prompt(
@@ -557,14 +638,24 @@ def run_agent_turn(
                 "\n[assistant is using %s tool(s)]\n" % len(tool_calls),
             )
 
+            image_urls = []
             for call in tool_calls:
                 fputs(SYS_STDOUT_BUFFER, "\n[tool %s]\n" % call.name)
                 tool_result = run_tool(call.name, call.arguments)
 
-                fputs(SYS_STDOUT_BUFFER, tool_result)
+                fputs(SYS_STDOUT_BUFFER, tool_result.text)
                 fputs(SYS_STDOUT_BUFFER, "\n")
-                conversation.append_tool_message(call.id, tool_result)
+                conversation.append_tool_message(call.id, tool_result.text)
+                image_urls.extend(tool_result.image_urls)
                 fputs(SYS_STDOUT_BUFFER, "\n")
+
+            # Images cannot be attached to a tool message by every provider,
+            # so pass them in follow-up user messages after all tool messages.
+            for image_url in image_urls:
+                conversation.append_user_message(
+                    "Attached image from tool result:",
+                    image_url=image_url,
+                )
 
             state = (
                 RunAgentTurnState.SEND_STREAMING_RESPONSE
@@ -736,7 +827,7 @@ def main():
     parser.add_argument(
         "--no-context-files",
         action="store_true",
-        help="Disable AGENTS.md and CLAUDE.md discovery",
+        help="Disable AGENTS.md and CLAUDE.md discovery in the current directory and its parents",
     )
     parser.add_argument(
         "--debug",

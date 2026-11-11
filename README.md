@@ -12,7 +12,8 @@ A minimal agent for OpenAI-compatible Chat Completions APIs with four built-in t
 - Interactive Python-powered REPL
 - Python 2.7+ and Python 3 compatible
 - Works with OpenAI-compatible `/chat/completions` endpoints
-- Discovery of `AGENTS.md` and `CLAUDE.md` under the current working directory
+- Discovery of `AGENTS.md` and `CLAUDE.md` in the current working directory and all of its parent directories
+- Image files are attached to the conversation when opened with the `read` tool
 - Streaming assistant responses
 - Reasoning deltas streamed inline as `[reasoning]` sections when the provider reports them
 - Editable multiline input through your editor
@@ -84,12 +85,25 @@ cat prompt.txt | chatrepl \
   --model "gpt-4o"
 ```
 
+## Context files
+
+At startup the agent looks for project instruction files in the current working
+directory and every parent directory, outermost first. In each directory the
+first match wins:
+
+- `AGENTS.override.md`
+- `AGENTS.md` / `AGENTS.MD`
+- `CLAUDE.md` / `CLAUDE.MD`
+
+Use `--no-context-files` to disable discovery.
+
 ## Tool model
 
 The agent is intentionally small and constrained.
 
 ### `read`
-Reads a text file with optional `offset` and `limit` arguments.
+Reads a text file with optional `offset` and `limit` arguments, or opens an
+image (`jpg`, `png`, `gif`, `webp`, `bmp`) and attaches it to the conversation.
 
 - Uses the provided path as-is
 
